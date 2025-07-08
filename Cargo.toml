@@ -1,0 +1,22 @@
+[package]
+name = "display_mover"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.98"
+clap = { version = "4.5.40", features = ["derive"] }
+log = "0.4.27"
+regex = "1.11.1"
+simple-log = "2.3.0"
+widestring = "1.2.0"
+
+
+[dependencies.windows]
+version = "0.52"
+features = [
+    "Win32_Graphics_Gdi",
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Devices_Display",
+]
