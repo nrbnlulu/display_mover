@@ -5,7 +5,6 @@
 
 pub mod winapi;
 
-pub type Result<T> = core::result::Result<T, String>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rect {
