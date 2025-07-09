@@ -30,66 +30,6 @@ use crate::utils::{Monitor, Rect};
 use widestring::U16CString;
 use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, IsIconic};
 
-unsafe extern "system" fn monitorenumproc(
-    hmonitor: HMONITOR,
-    _hdc: HDC,
-    _lprect: *mut RECT,
-    _lparam: LPARAM,
-) -> windows::Win32::Foundation::BOOL {
-    unsafe {
-        let mut info_ex = MONITORINFOEXW::default();
-        info_ex.monitorInfo.cbSize = mem::size_of::<MONITORINFOEXW>() as u32;
-        let monitor_info_ex_w_ptr = &mut info_ex as *mut MONITORINFOEXW as *mut MONITORINFO;
-
-        // https://learn.microsoft.com/zh-cn/windows/win32/api/winuser/nf-winuser-getmonitorinfoa
-        if !GetMonitorInfoW(hmonitor, monitor_info_ex_w_ptr).as_bool() {
-            warn!(
-                "Failed to get monitor info: {}",
-                GetLastError().unwrap_err()
-            );
-            return windows::Win32::Foundation::FALSE;
-        }
-        let primary = info_ex.monitorInfo.dwFlags == MONITORINFOF_PRIMARY;
-        let info = info_ex.monitorInfo;
-        let rect = Rect {
-            left: info_ex.monitorInfo.rcMonitor.left as f64,
-            top: info_ex.monitorInfo.rcMonitor.top as f64,
-            right: info_ex.monitorInfo.rcMonitor.right as f64,
-            bottom: info_ex.monitorInfo.rcMonitor.bottom as f64,
-        };
-        let work_rect = Rect {
-            left: info.rcWork.left as f64,
-            top: info.rcWork.top as f64,
-            right: info.rcWork.right as f64,
-            bottom: info.rcWork.bottom as f64,
-        };
-        let sz_device = info_ex.szDevice.as_ptr();
-        let mut dev_mode_w = DEVMODEW {
-            dmSize: mem::size_of::<DEVMODEW>() as u16,
-            ..DEVMODEW::default()
-        };
-
-        if !EnumDisplaySettingsW(PCWSTR(sz_device), ENUM_CURRENT_SETTINGS, &mut dev_mode_w)
-            .as_bool()
-        {
-            warn!(
-                "Failed to get display settings for device {}: {}",
-                String::from_utf16_lossy(&info_ex.szDevice).to_string(),
-                GetLastError().unwrap_err()
-            );
-            return windows::Win32::Foundation::FALSE;
-        };
-        // Convert szDevice (&[u8; 32]) to String by treating as ANSI and trimming at null terminator
-        let config = get_monitor_config(info_ex).unwrap();
-        let device_name = U16CString::from_vec_truncate(config.monitorFriendlyDeviceName)
-            .to_string()
-            .unwrap();
-        let monitors = _lparam.0 as *mut Vec<Monitor>;
-        (*monitors).push(Monitor::new(device_name, primary, rect, work_rect));
-    }
-
-    windows::Win32::Foundation::TRUE
-}
 pub(super) fn get_monitor_config(
     monitor_info_ex_w: MONITORINFOEXW,
 ) -> anyhow::Result<DISPLAYCONFIG_TARGET_DEVICE_NAME> {
@@ -153,6 +93,68 @@ pub(super) fn get_monitor_config(
         Err(anyhow::anyhow!("Get monitor name failed"))
     }
 }
+
+unsafe extern "system" fn monitorenumproc(
+    hmonitor: HMONITOR,
+    _hdc: HDC,
+    _lprect: *mut RECT,
+    _lparam: LPARAM,
+) -> windows::Win32::Foundation::BOOL {
+    unsafe {
+        let mut info_ex = MONITORINFOEXW::default();
+        info_ex.monitorInfo.cbSize = mem::size_of::<MONITORINFOEXW>() as u32;
+        let monitor_info_ex_w_ptr = &mut info_ex as *mut MONITORINFOEXW as *mut MONITORINFO;
+
+        // https://learn.microsoft.com/zh-cn/windows/win32/api/winuser/nf-winuser-getmonitorinfoa
+        if !GetMonitorInfoW(hmonitor, monitor_info_ex_w_ptr).as_bool() {
+            warn!(
+                "Failed to get monitor info: {}",
+                GetLastError().unwrap_err()
+            );
+            return windows::Win32::Foundation::FALSE;
+        }
+        let primary = info_ex.monitorInfo.dwFlags == MONITORINFOF_PRIMARY;
+        let info = info_ex.monitorInfo;
+        let rect = Rect {
+            left: info_ex.monitorInfo.rcMonitor.left as f64,
+            top: info_ex.monitorInfo.rcMonitor.top as f64,
+            right: info_ex.monitorInfo.rcMonitor.right as f64,
+            bottom: info_ex.monitorInfo.rcMonitor.bottom as f64,
+        };
+        let work_rect = Rect {
+            left: info.rcWork.left as f64,
+            top: info.rcWork.top as f64,
+            right: info.rcWork.right as f64,
+            bottom: info.rcWork.bottom as f64,
+        };
+        let sz_device = info_ex.szDevice.as_ptr();
+        let mut dev_mode_w = DEVMODEW {
+            dmSize: mem::size_of::<DEVMODEW>() as u16,
+            ..DEVMODEW::default()
+        };
+
+        if !EnumDisplaySettingsW(PCWSTR(sz_device), ENUM_CURRENT_SETTINGS, &mut dev_mode_w)
+            .as_bool()
+        {
+            warn!(
+                "Failed to get display settings for device {}: {}",
+                String::from_utf16_lossy(&info_ex.szDevice).to_string(),
+                GetLastError().unwrap_err()
+            );
+            return windows::Win32::Foundation::FALSE;
+        };
+        // Convert szDevice (&[u8; 32]) to String by treating as ANSI and trimming at null terminator
+        let config = get_monitor_config(info_ex).unwrap();
+        let device_name = U16CString::from_vec_truncate(config.monitorFriendlyDeviceName)
+            .to_string()
+            .unwrap();
+        let monitors = _lparam.0 as *mut Vec<Monitor>;
+        (*monitors).push(Monitor::new(device_name, primary, rect, work_rect));
+    }
+
+    windows::Win32::Foundation::TRUE
+}
+
 pub fn get_monitors() -> Vec<Monitor> {
     let mut monitors: Vec<Monitor> = Vec::new();
 
