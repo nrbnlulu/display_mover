@@ -1,29 +1,39 @@
 mod utils;
 
 use clap::{Parser, Subcommand};
-use log::{info, Level};
+use log::{Level, info};
 
 use crate::utils::winapi::{get_monitors, get_pid_hwnd, move_window_to_monitor};
 
-
-
 fn move_pid_windows_to_monitor(pid: isize, monitor_regex: &str) -> anyhow::Result<()> {
     let monitors = get_monitors();
-    let monitor_regex = regex::Regex::new(monitor_regex)
-        .map_err(|e| anyhow::anyhow!("Invalid regex: {}", e))?;
-    let monitor = monitors.iter().find(|m| {
-        monitor_regex.is_match(&m.device_name())
-    });
+    let monitor_regex =
+        regex::Regex::new(monitor_regex).map_err(|e| anyhow::anyhow!("Invalid regex: {}", e))?;
+    let monitor = monitors
+        .iter()
+        .find(|m| monitor_regex.is_match(&m.device_name()));
     if let Some(monitor) = monitor {
         if let Some(hwnd) = get_pid_hwnd(pid)? {
-            info!("Moving window with PID {} to monitor: {}", pid, monitor.device_name());
+            info!(
+                "Moving window with PID {} to monitor: {}",
+                pid,
+                monitor.device_name()
+            );
             move_window_to_monitor(hwnd, monitor)?;
-            info!("Successfully moved window with PID {} to monitor: {}", pid, monitor.device_name());
+            info!(
+                "Successfully moved window with PID {} to monitor: {}",
+                pid,
+                monitor.device_name()
+            );
         } else {
             return Err(anyhow::anyhow!("No window found for PID {}", pid));
         }
     } else {
-        return Err(anyhow::anyhow!("Monitor not found for regex: {}, available monitors: {:?}", monitor_regex, monitors));
+        return Err(anyhow::anyhow!(
+            "Monitor not found for regex: {}, available monitors: {:?}",
+            monitor_regex,
+            monitors
+        ));
     }
     Ok(())
 }

@@ -3,10 +3,6 @@
 
 //! Module to get information about monitors
 
-use std::fmt;
-use std::fmt::Display;
-
-use windows::Win32::Graphics::Gdi::{DEVMODEW, HMONITOR};
 pub mod winapi;
 
 pub type Result<T> = core::result::Result<T, String>;
@@ -28,8 +24,6 @@ impl Rect {
     }
 }
 
-
-
 /// Monitor struct containing data about a monitor on the system
 ///
 /// Use [`Screen::get_monitors`] to return a `Vec<Monitor>` of all the monitors on the system
@@ -37,7 +31,7 @@ impl Rect {
 /// [`Screen::get_monitors`]: Screen::get_monitors
 #[derive(Clone, Debug, PartialEq)]
 pub struct Monitor {
-    dmDeviceName: String,
+    device_name: String,
     primary: bool,
     rect: Rect,
     // TODO: Work area, cross_platform
@@ -50,9 +44,9 @@ pub struct Monitor {
 
 impl Monitor {
     #[allow(dead_code)]
-    pub(crate) fn new(dmDeviceName: String, primary: bool, rect: Rect, work_rect: Rect) -> Self {
+    pub(crate) fn new(device_name: String, primary: bool, rect: Rect, work_rect: Rect) -> Self {
         Monitor {
-            dmDeviceName,
+            device_name,
             primary,
             rect,
             work_rect,
@@ -60,7 +54,7 @@ impl Monitor {
     }
 
     pub fn device_name(&self) -> &str {
-        &self.dmDeviceName
+        &self.device_name
     }
 
     /// Returns true if the monitor is the primary monitor.
@@ -86,6 +80,3 @@ impl Monitor {
         self.rect.bottom - self.rect.top
     }
 }
-
-
-

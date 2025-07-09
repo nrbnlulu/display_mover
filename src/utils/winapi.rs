@@ -1,28 +1,34 @@
 use std::{
     mem,
-    ptr::null_mut,
     sync::{Arc, Mutex},
 };
 
 use log::warn;
 use windows::{
-    core::PCWSTR, Win32::{
+    Win32::{
         Devices::Display::{
-            DisplayConfigGetDeviceInfo, GetDisplayConfigBufferSizes, QueryDisplayConfig, DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME, DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, DISPLAYCONFIG_DEVICE_INFO_HEADER, DISPLAYCONFIG_MODE_INFO, DISPLAYCONFIG_PATH_INFO, DISPLAYCONFIG_SOURCE_DEVICE_NAME, DISPLAYCONFIG_TARGET_DEVICE_NAME, QDC_ONLY_ACTIVE_PATHS
+            DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME, DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME,
+            DISPLAYCONFIG_DEVICE_INFO_HEADER, DISPLAYCONFIG_MODE_INFO, DISPLAYCONFIG_PATH_INFO,
+            DISPLAYCONFIG_SOURCE_DEVICE_NAME, DISPLAYCONFIG_TARGET_DEVICE_NAME,
+            DisplayConfigGetDeviceInfo, GetDisplayConfigBufferSizes, QDC_ONLY_ACTIVE_PATHS,
+            QueryDisplayConfig,
         },
-        Foundation::{GetLastError, HWND, LPARAM, RECT, WPARAM},
+        Foundation::{GetLastError, HWND, LPARAM, RECT},
         Graphics::Gdi::{
-            EnumDisplayMonitors, EnumDisplaySettingsW, GetMonitorInfoA, GetMonitorInfoW, DEVMODEW, ENUM_CURRENT_SETTINGS, HDC, HMONITOR, MONITORINFO, MONITORINFOEXA, MONITORINFOEXW
+            DEVMODEW, ENUM_CURRENT_SETTINGS, EnumDisplayMonitors, EnumDisplaySettingsW,
+            GetMonitorInfoW, HDC, HMONITOR, MONITORINFO, MONITORINFOEXW,
         },
         UI::WindowsAndMessaging::{
-            FindWindowExW, GetWindowThreadProcessId, SendMessageA, SendMessageW, SetWindowPos, MONITORINFOF_PRIMARY, SC_MAXIMIZE, SWP_NOACTIVATE, SWP_NOZORDER, SW_SHOWMAXIMIZED, WM_SYSCOMMAND
+            GetWindowThreadProcessId, MONITORINFOF_PRIMARY, SWP_NOACTIVATE, SWP_NOZORDER,
+            SetWindowPos,
         },
-    }
+    },
+    core::PCWSTR,
 };
 
-use crate::utils::{self, Monitor, Rect};
-use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, IsIconic, IsWindowVisible};
+use crate::utils::{Monitor, Rect};
 use widestring::U16CString;
+use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, IsIconic};
 
 unsafe extern "system" fn monitorenumproc(
     hmonitor: HMONITOR,
@@ -36,15 +42,13 @@ unsafe extern "system" fn monitorenumproc(
         let monitor_info_ex_w_ptr = &mut info_ex as *mut MONITORINFOEXW as *mut MONITORINFO;
 
         // https://learn.microsoft.com/zh-cn/windows/win32/api/winuser/nf-winuser-getmonitorinfoa
-        unsafe {
-            if !GetMonitorInfoW(hmonitor, monitor_info_ex_w_ptr).as_bool() {
-                warn!(
-                    "Failed to get monitor info: {}",
-                    GetLastError().unwrap_err()
-                );
-                return windows::Win32::Foundation::FALSE;
-            }
-        };
+        if !GetMonitorInfoW(hmonitor, monitor_info_ex_w_ptr).as_bool() {
+            warn!(
+                "Failed to get monitor info: {}",
+                GetLastError().unwrap_err()
+            );
+            return windows::Win32::Foundation::FALSE;
+        }
         let primary = info_ex.monitorInfo.dwFlags == MONITORINFOF_PRIMARY;
         let info = info_ex.monitorInfo;
         let rect = Rect {
@@ -77,14 +81,11 @@ unsafe extern "system" fn monitorenumproc(
         };
         // Convert szDevice (&[u8; 32]) to String by treating as ANSI and trimming at null terminator
         let config = get_monitor_config(info_ex).unwrap();
-        let device_name = U16CString::from_vec_truncate(config.monitorFriendlyDeviceName).to_string().unwrap();
+        let device_name = U16CString::from_vec_truncate(config.monitorFriendlyDeviceName)
+            .to_string()
+            .unwrap();
         let monitors = _lparam.0 as *mut Vec<Monitor>;
-        (*monitors).push(Monitor::new(
-            device_name,
-            primary,
-            rect,
-            work_rect,
-        ));
+        (*monitors).push(Monitor::new(device_name, primary, rect, work_rect));
     }
 
     windows::Win32::Foundation::TRUE
@@ -154,7 +155,7 @@ pub(super) fn get_monitor_config(
 }
 pub fn get_monitors() -> Vec<Monitor> {
     let mut monitors: Vec<Monitor> = Vec::new();
-    
+
     unsafe {
         if EnumDisplayMonitors(
             None,
@@ -194,9 +195,7 @@ unsafe extern "system" fn enum_windows_proc(
 
     unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
     let payload = unsafe { Arc::from_raw(lparam.0 as *const EnumWindowProcPayload) };
-    if pid == payload.target_pid as u32
-        && !unsafe { IsIconic(hwnd).as_bool() }
-    {
+    if pid == payload.target_pid as u32 && !unsafe { IsIconic(hwnd).as_bool() } {
         // Store the HWND in lparam
         payload.windows.lock().unwrap().push(hwnd);
     }
