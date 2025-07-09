@@ -1,6 +1,7 @@
 mod utils;
 
 use clap::{Parser, Subcommand};
+use log::{info, Level};
 
 use crate::utils::winapi::{get_monitors, get_pid_hwnd, move_window_to_monitor};
 
@@ -15,7 +16,9 @@ fn move_pid_windows_to_monitor(pid: isize, monitor_regex: &str) -> anyhow::Resul
     });
     if let Some(monitor) = monitor {
         if let Some(hwnd) = get_pid_hwnd(pid)? {
+            info!("Moving window with PID {} to monitor: {}", pid, monitor.device_name());
             move_window_to_monitor(hwnd, monitor)?;
+            info!("Successfully moved window with PID {} to monitor: {}", pid, monitor.device_name());
         } else {
             return Err(anyhow::anyhow!("No window found for PID {}", pid));
         }
@@ -57,8 +60,13 @@ fn run_cli() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn init_simpl_log() -> anyhow::Result<()> {
+    simple_log::console(Level::Debug).unwrap();
+    Ok(())
+}
 
 fn main() {
+    init_simpl_log().unwrap();
     run_cli().unwrap();
     // let monitors = get_monitors();
     // println!("Monitors: {:?}", monitors);
@@ -76,8 +84,8 @@ mod tests {
     fn test_move_pid_windows_to_monitor() {
         // This test requires a valid PID and monitor regex to run successfully.
         // You may need to adjust the PID and regex based on your system.
-        let pid = 30788; // Replace with a valid PID
-        let monitor_regex = r"(?i)MIMO"; // Matches 'hp' case-insensitively anywhere in the string
+        let pid = 9716; // Replace with a valid PID
+        let monitor_regex = r"PHL"; // Matches 'hp' case-insensitively anywhere in the string
 
         let result = move_pid_windows_to_monitor(pid, monitor_regex);
         assert!(result.is_ok(), "Failed to move window: {:?}", result);
