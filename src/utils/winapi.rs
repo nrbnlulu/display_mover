@@ -5,25 +5,18 @@ use std::{
 
 use log::warn;
 use windows::{
-    Win32::{
+    core::PCWSTR, Win32::{
         Devices::Display::{
-            DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME, DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME,
-            DISPLAYCONFIG_DEVICE_INFO_HEADER, DISPLAYCONFIG_MODE_INFO, DISPLAYCONFIG_PATH_INFO,
-            DISPLAYCONFIG_SOURCE_DEVICE_NAME, DISPLAYCONFIG_TARGET_DEVICE_NAME,
-            DisplayConfigGetDeviceInfo, GetDisplayConfigBufferSizes, QDC_ONLY_ACTIVE_PATHS,
-            QueryDisplayConfig,
+            DisplayConfigGetDeviceInfo, GetDisplayConfigBufferSizes, QueryDisplayConfig, DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME, DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME, DISPLAYCONFIG_DEVICE_INFO_HEADER, DISPLAYCONFIG_MODE_INFO, DISPLAYCONFIG_PATH_INFO, DISPLAYCONFIG_SOURCE_DEVICE_NAME, DISPLAYCONFIG_TARGET_DEVICE_NAME, QDC_ONLY_ACTIVE_PATHS
         },
         Foundation::{GetLastError, HWND, LPARAM, RECT},
         Graphics::Gdi::{
-            DEVMODEW, ENUM_CURRENT_SETTINGS, EnumDisplayMonitors, EnumDisplaySettingsW,
-            GetMonitorInfoW, HDC, HMONITOR, MONITORINFO, MONITORINFOEXW,
+            EnumDisplayMonitors, EnumDisplaySettingsW, GetMonitorInfoW, DEVMODEW, ENUM_CURRENT_SETTINGS, HDC, HMONITOR, MONITORINFO, MONITORINFOEXW
         },
         UI::WindowsAndMessaging::{
-            GetWindowThreadProcessId, MONITORINFOF_PRIMARY, SWP_NOACTIVATE, SWP_NOZORDER,
-            SetWindowPos,
+            GetWindowThreadProcessId, MoveWindow, SetWindowPos, MONITORINFOF_PRIMARY, SWP_NOACTIVATE, SWP_NOZORDER
         },
-    },
-    core::PCWSTR,
+    }
 };
 
 use crate::utils::{Monitor, Rect};
@@ -222,14 +215,13 @@ pub fn get_pid_hwnd(process_id: isize) -> anyhow::Result<Option<HWND>> {
 pub fn move_window_to_monitor(window: HWND, monitor: &Monitor) -> anyhow::Result<()> {
     let rect = monitor.virtual_rect();
     unsafe {
-        SetWindowPos(
+        MoveWindow(
             window,
-            None,
             rect.left as i32,
             rect.top as i32,
             rect.width() as i32,
             rect.height() as i32,
-            SWP_NOZORDER | SWP_NOACTIVATE,
+            true,
         )?;
     }
 
