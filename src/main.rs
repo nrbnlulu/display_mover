@@ -1,5 +1,6 @@
 mod utils;
 
+use anyhow::Ok;
 use clap::{Parser, Subcommand};
 use log::{Level, info};
 
@@ -38,6 +39,34 @@ fn move_pid_windows_to_monitor(pid: isize, monitor_regex: &str) -> anyhow::Resul
     Ok(())
 }
 
+fn get_monitor_coords(monitor_regex: &str) -> anyhow::Result<String> {
+    let monitors = get_monitors();
+    let monitor_regex =
+        regex::Regex::new(monitor_regex).map_err(|e| anyhow::anyhow!("Invalid regex: {}", e))?;
+    let monitor = monitors
+        .iter()
+        .find(|m| monitor_regex.is_match(&m.device_name()));
+    if let Some(monitor) = monitor {
+        let rect = monitor.virtual_work_rect();
+        // return as powershell object
+        let coords = format!(
+            "New-Object PSObject -Property @{{DeviceName='{}'; Left={}; Top={}; Width={}; Height={}}}",
+            monitor.device_name(),
+            rect.left,
+            rect.top,
+            rect.width(),
+            rect.height()
+        );
+        Ok(coords)
+    } else {
+        return Err(anyhow::anyhow!(
+            "Monitor not found for regex: {}, available monitors: {:?}",
+            monitor_regex,
+            monitors
+        ));
+    }
+}
+
 #[derive(Parser)]
 #[command(name = "display_mover")]
 #[command(about = "Move windows to monitors by PID and monitor regex", long_about = None)]
@@ -57,6 +86,12 @@ enum Commands {
         #[arg(long)]
         monitor_regex: String,
     },
+    /// Get monitor coordinates
+    MonitorCoords {
+        /// Regex to match the monitor device name
+        #[arg(long)]
+        monitor_regex: String,
+    },
 }
 
 fn run_cli() -> anyhow::Result<()> {
@@ -65,7 +100,11 @@ fn run_cli() -> anyhow::Result<()> {
     match &cli.command {
         Commands::Move { pid, monitor_regex } => {
             move_pid_windows_to_monitor(*pid, monitor_regex)?;
-        }
+        },
+        Commands::MonitorCoords { monitor_regex } => {
+            let coords = get_monitor_coords(monitor_regex)?;
+            println!("{}", coords);
+        },
     }
     Ok(())
 }
